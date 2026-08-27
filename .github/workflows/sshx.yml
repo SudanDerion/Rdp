@@ -1,0 +1,51 @@
+name: SSH Runner + Tailscale + sshx.io
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  setup-sshx-runner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
+      
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Install Tailscale ---
+      - name: Install Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+
+      - name: Authenticate to Tailscale
+        run: |
+          sudo tailscale up --authkey=${TAILSCALE_AUTHKEY} --hostname=gh-sshx-runner
+
+      - name: Check Tailscale status
+        run: |
+          tailscale status
+          echo "Tailscale IP:"
+          tailscale ip -4 | head -n1
+
+      # --- Start sshx.io session ---
+      - name: Start sshx.io session
+        run: |
+          echo ">>> Starting sshx.io session..."
+          curl -sSf https://sshx.io/get | sh -s run &
+          
+          # Get Tailscale IP for SSH connection
+          TAILSCALE_IP=$(tailscale ip -4 | head -n1)
+          echo
+          echo "=== SSH CONNECTION INFO ==="
+          echo "Connect using either:"
+          echo "  SSH via Tailscale: ssh -o StrictHostKeyChecking=no runner@${TAILSCALE_IP}"
+          echo "  OR connect via sshx.io using the link up there "
+          echo
+          echo "This method is provided by @MR_English2008 on Telegram."
+          echo "For more methods, join: https://t.me/ME2008_RDP"
+          echo ">>> Keeping session alive for 6 hours..."
+          sleep 21600
